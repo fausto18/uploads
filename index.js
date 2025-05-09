@@ -1,36 +1,48 @@
 const express = require('express');
-const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
+// Criar pasta uploads se não existir
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
-// Configuração de armazenamento com multer
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // pasta onde os arquivos serão salvos
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+// Middleware para aceitar JSONs grandes
+app.use(express.json({ limit: '50mb' }));
+
+// Endpoint de upload via JSON base64
+app.post('/upload', (req, res) => {
+  const { file, filename } = req.body;
+
+  if (!file || !filename) {
+    return res.status(400).json({ error: 'Campos "file" e "filename" são obrigatórios.' });
   }
-});
 
-const upload = multer({ storage: storage });
+  const filePath = path.join(uploadDir, Date.now() + '-' + filename);
+  const buffer = Buffer.from(file, 'base64');
 
-// Rota de upload
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('Nenhum ficheiro foi enviado.');
-  }
-  res.send({
-    message: 'Ficheiro carregado com sucesso!',
-    filename: req.file.filename,
-    path: req.file.path
+  fs.writeFile(filePath, buffer, (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Erro ao salvar ficheiro.' });
+    }
+    res.json({
+      message: 'Ficheiro carregado com sucesso!',
+      filename: path.basename(filePath),
+      path: filePath,
+    });
   });
 });
 
+// Teste de rota básica
+app.get('/', (req, res) => {
+  res.send('Servidor de upload via JSON está funcionando!');
+});
+
+// Inicialização do servidor
 app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
