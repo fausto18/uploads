@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -11,33 +12,29 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Middleware para aceitar JSONs grandes
-app.use(express.json({ limit: '50mb' }));
+// Configuração do multer
+const storage = multer.diskStorage({
+  destination: (_, __, cb) => cb(null, uploadDir),
+  filename: (_, file, cb) => {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+const upload = multer({ storage });
 
-// Endpoint de upload via JSON base64 e resposta com download
-app.post('/upload', (req, res) => {
-  const { file, filename } = req.body;
-
-  if (!file || !filename) {
-    return res.status(400).json({ error: 'Campos "file" e "filename" são obrigatórios.' });
+// Endpoint para upload e resposta com download imediato
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('Nenhum ficheiro enviado.');
   }
 
-  const uniqueName = Date.now() + '-' + filename;
-  const filePath = path.join(uploadDir, uniqueName);
-  const buffer = Buffer.from(file, 'base64');
-
-  fs.writeFile(filePath, buffer, (err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Erro ao salvar ficheiro.' });
-    }
-    // Retornar o arquivo como download
-    res.download(filePath, filename);
-  });
+  // Retornar o arquivo como download após o upload
+  res.download(req.file.path, req.file.originalname);
 });
 
 // Rota de teste
 app.get('/', (req, res) => {
-  res.send('Servidor de upload via JSON está funcionando!');
+  res.send('Servidor de upload via multipart/form-data está funcionando!');
 });
 
 // Inicialização do servidor
