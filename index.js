@@ -14,7 +14,7 @@ if (!fs.existsSync(uploadDir)) {
 // Middleware para aceitar JSONs grandes
 app.use(express.json({ limit: '50mb' }));
 
-// Endpoint de upload via JSON base64
+// Endpoint de upload via JSON base64 e resposta com download
 app.post('/upload', (req, res) => {
   const { file, filename } = req.body;
 
@@ -22,22 +22,20 @@ app.post('/upload', (req, res) => {
     return res.status(400).json({ error: 'Campos "file" e "filename" são obrigatórios.' });
   }
 
-  const filePath = path.join(uploadDir, Date.now() + '-' + filename);
+  const uniqueName = Date.now() + '-' + filename;
+  const filePath = path.join(uploadDir, uniqueName);
   const buffer = Buffer.from(file, 'base64');
 
   fs.writeFile(filePath, buffer, (err) => {
     if (err) {
       return res.status(500).json({ error: 'Erro ao salvar ficheiro.' });
     }
-    res.json({
-      message: 'Ficheiro carregado com sucesso!',
-      filename: path.basename(filePath),
-      path: filePath,
-    });
+    // Retornar o arquivo como download
+    res.download(filePath, filename);
   });
 });
 
-// Teste de rota básica
+// Rota de teste
 app.get('/', (req, res) => {
   res.send('Servidor de upload via JSON está funcionando!');
 });
