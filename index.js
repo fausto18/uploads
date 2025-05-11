@@ -22,41 +22,24 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ✅ Rota GET /upload → formulário HTML para envio
-app.get('/upload', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="pt">
-    <head>
-      <meta charset="UTF-8">
-      <title>Enviar Ficheiro</title>
-    </head>
-    <body>
-      <h2>Upload de Ficheiro</h2>
-      <form action="/upload" method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" required />
-        <button type="submit">Enviar</button>
-      </form>
-    </body>
-    </html>
-  `);
-});
-
-// ✅ Upload e download imediato
+// 📤 POST /upload → envia ficheiro via multipart/form-data
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
-    return res.status(400).send('Nenhum ficheiro enviado.');
+    return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
   }
 
-  // Forçar download após upload
-  res.download(req.file.path, req.file.originalname);
+  res.json({
+    message: 'Upload realizado com sucesso!',
+    filename: req.file.filename,
+    downloadUrl: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+  });
 });
 
-// ✅ Listar todos os uploads
+// 📂 GET /uploads → listar todos os ficheiros enviados
 app.get('/uploads', (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) {
-      return res.status(500).json({ error: 'Erro ao ler a pasta de uploads.' });
+      return res.status(500).json({ error: 'Erro ao listar ficheiros.' });
     }
 
     const lista = files.map(filename => ({
@@ -68,15 +51,15 @@ app.get('/uploads', (req, res) => {
   });
 });
 
-// ✅ Rota para acessar os arquivos diretamente
+// 📥 GET /uploads/:filename → baixar ou visualizar arquivo
 app.use('/uploads', express.static(uploadDir));
 
-// ✅ Página inicial simples
+// ✅ Rota raiz de teste
 app.get('/', (req, res) => {
-  res.send('Servidor de upload via multipart/form-data está funcionando!');
+  res.json({ status: 'Servidor de upload está ativo.' });
 });
 
-// Inicialização do servidor
+// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
