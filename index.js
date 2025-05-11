@@ -1,59 +1,48 @@
-require('dotenv').config();
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
-const db = require('./db');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
+// Criar pasta uploads se não existir
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
-const storage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, uploadDir),
-  filename: (_, file, cb) =>
-    cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
+// Middleware para aceitar JSONs grandes
+app.use(express.json({ limit: '50mb' }));
 
-app.use(express.json());
+// Endpoint de upload via JSON base64
+app.post('/upload', (req, res) => {
+  const { file, filename } = req.body;
 
-// Upload e cadastro no banco
-app.post('/upload', upload.single('file'), (req, res) => {
-  const file = req.file;
-  if (!file) return res.status(400).send('Ficheiro não enviado.');
+  if (!file || !filename) {
+    return res.status(400).json({ error: 'Campos "file" e "filename" são obrigatórios.' });
+  }
 
-  const sql = 'INSERT INTO documentos (nome_original, caminho) VALUES (?, ?)';
-  const values = [file.originalname, file.path];
+  const filePath = path.join(uploadDir, Date.now() + '-' + filename);
+  const buffer = Buffer.from(file, 'base64');
 
-  db.query(sql, values, (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: result.insertId, message: 'Ficheiro salvo com sucesso!' });
+  fs.writeFile(filePath, buffer, (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Erro ao salvar ficheiro.' });
+    }
+    res.json({
+      message: 'Ficheiro carregado com sucesso!',
+      filename: path.basename(filePath),
+      path: filePath,
+    });
   });
 });
 
-// Listar documentos
-app.get('/documentos', (_, res) => {
-  db.query('SELECT * FROM documentos', (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
+// Teste de rota básica
+app.get('/', (req, res) => {
+  res.send('Servidor de upload via JSON está funcionando!');
 });
 
-// Download de documento
-app.get('/documentos/:id/download', (req, res) => {
-  const { id } = req.params;
-  db.query('SELECT * FROM documentos WHERE id = ?', [id], (err, results) => {
-    if (err || results.length === 0)
-      return res.status(404).send('Documento não encontrado.');
-
-    const doc = results[0];
-    res.download(path.resolve(doc.caminho), doc.nome_original);
-  });
-});
-
+// Inicialização do servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
