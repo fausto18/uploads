@@ -6,57 +6,63 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Criar pasta uploads se não existir
+// Criar a pasta 'uploads' se ela não existir
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true }); // Garante que subpastas também podem ser criadas
 }
 
-// Configuração do multer
+// Configuração do multer para salvar arquivos com nomes únicos
 const storage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, uploadDir),
-  filename: (_, file, cb) => {
-    const uniqueName = Date.now() + '-' + file.originalname;
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
     cb(null, uniqueName);
   }
 });
 const upload = multer({ storage });
 
-// 📤 POST /upload → envia ficheiro via multipart/form-data
+// Endpoint POST para upload de arquivos
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
   }
 
-  res.json({
+  const downloadUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  res.status(201).json({
     message: 'Upload realizado com sucesso!',
     filename: req.file.filename,
-    downloadUrl: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+    originalname: req.file.originalname,
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+    downloadUrl
   });
 });
 
-// 📂 GET /uploads → listar todos os ficheiros enviados
+// Endpoint GET para listar arquivos
 app.get('/uploads', (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) {
-      return res.status(500).json({ error: 'Erro ao listar ficheiros.' });
+      return res.status(500).json({ error: 'Erro ao acessar a pasta de uploads.' });
     }
 
-    const lista = files.map(filename => ({
+    const fileList = files.map((filename) => ({
       filename,
       url: `${req.protocol}://${req.get('host')}/uploads/${filename}`
     }));
 
-    res.json(lista);
+    res.json(fileList);
   });
 });
 
-// 📥 GET /uploads/:filename → baixar ou visualizar arquivo
+// Servir arquivos estaticamente
 app.use('/uploads', express.static(uploadDir));
 
-// ✅ Rota raiz de teste
+// Rota básica
 app.get('/', (req, res) => {
-  res.json({ status: 'Servidor de upload está ativo.' });
+  res.send('Servidor de upload ativo. Use POST /upload para enviar arquivos.');
 });
 
 // Iniciar servidor
