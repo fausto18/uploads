@@ -22,17 +22,37 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Endpoint para upload e resposta com download imediato
+// ✅ Rota GET /upload → formulário HTML para envio
+app.get('/upload', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt">
+    <head>
+      <meta charset="UTF-8">
+      <title>Enviar Ficheiro</title>
+    </head>
+    <body>
+      <h2>Upload de Ficheiro</h2>
+      <form action="/upload" method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" required />
+        <button type="submit">Enviar</button>
+      </form>
+    </body>
+    </html>
+  `);
+});
+
+// ✅ Upload e download imediato
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).send('Nenhum ficheiro enviado.');
   }
 
-  // Retornar o arquivo como download após o upload
+  // Forçar download após upload
   res.download(req.file.path, req.file.originalname);
 });
 
-// Endpoint para listar todos os arquivos enviados
+// ✅ Listar todos os uploads
 app.get('/uploads', (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) {
@@ -48,10 +68,10 @@ app.get('/uploads', (req, res) => {
   });
 });
 
-// Rota estática para servir os arquivos
+// ✅ Rota para acessar os arquivos diretamente
 app.use('/uploads', express.static(uploadDir));
 
-// Rota de teste
+// ✅ Página inicial simples
 app.get('/', (req, res) => {
   res.send('Servidor de upload via multipart/form-data está funcionando!');
 });
