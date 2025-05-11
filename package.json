@@ -1,17 +1,20 @@
 {
-  "name": "test",
+  "name": "upload-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "API para upload de ficheiros com Express e Multer",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
+  "keywords": ["express", "upload", "multer", "api"],
   "author": "Fausto",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "express": "^5.1.0",
     "multer": "^1.4.5-lts.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
