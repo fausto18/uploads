@@ -40,6 +40,22 @@ app.post('/upload', upload.single('file'), (req, res) => {
   });
 });
 
+// ✅ GET /uploads → lista todos os arquivos enviados
+app.get('/uploads', (req, res) => {
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: 'Erro ao acessar os arquivos.' });
+    }
+
+    const lista = files.map((filename) => ({
+      filename,
+      url: `${req.protocol}://${req.get('host')}/uploads/${filename}`
+    }));
+
+    res.json(lista);
+  });
+});
+
 // ✅ GET /uploads/:filename → serve o arquivo enviado
 app.get('/uploads/:filename', (req, res) => {
   const filePath = path.join(uploadDir, req.params.filename);
