@@ -6,13 +6,13 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Pasta onde os arquivos serão armazenados
+// 📁 Cria a pasta uploads se não existir
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configuração do multer
+// ⚙️ Configuração do Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -22,11 +22,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// POST /upload → envia o arquivo e retorna a URL de acesso
+// ✅ GET / → rota básica de teste
+app.get('/', (req, res) => {
+  res.send('🚀 API de Upload está online!');
+});
+
+// ✅ POST /upload → faz upload e retorna a URL do arquivo
 app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-  }
+  if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
 
   const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
   res.status(201).json({
@@ -37,7 +40,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   });
 });
 
-// GET /uploads/:filename → retorna o arquivo
+// ✅ GET /uploads/:filename → serve o arquivo enviado
 app.get('/uploads/:filename', (req, res) => {
   const filePath = path.join(uploadDir, req.params.filename);
   if (!fs.existsSync(filePath)) {
@@ -46,7 +49,7 @@ app.get('/uploads/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// Iniciar servidor
+// 🚀 Inicia o servidor
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
