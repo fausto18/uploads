@@ -32,25 +32,6 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.download(req.file.path, req.file.originalname);
 });
 
-// Endpoint para listar todos os arquivos enviados
-app.get('/uploads', (req, res) => {
-  fs.readdir(uploadDir, (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Erro ao ler a pasta de uploads.' });
-    }
-
-    const lista = files.map(filename => ({
-      filename,
-      url: `${req.protocol}://${req.get('host')}/uploads/${filename}`
-    }));
-
-    res.json(lista);
-  });
-});
-
-// Rota estática para servir os arquivos
-app.use('/uploads', express.static(uploadDir));
-
 // Rota de teste
 app.get('/', (req, res) => {
   res.send('Servidor de upload via multipart/form-data está funcionando!');
