@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 📥 POST /upload → faz upload e mostra o arquivo enviado
+// POST /upload → faz upload e exibe o próprio arquivo
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
