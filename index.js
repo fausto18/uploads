@@ -11,9 +11,9 @@ const PORT = process.env.PORT || 8080;
 app.use(cors({
   origin: [
     'http://localhost:3000',
-  'https://web-repositorio.vercel.app'
-  
-  ]
+    'https://web-repositorio-feliciano-rodinos-projects.vercel.app'
+  ],
+  credentials: true
 }));
 
 // 📁 Cria a pasta uploads se não existir
