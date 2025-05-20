@@ -2,12 +2,12 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const cors = require('cors'); // ✅ Importado
+const cors = require('cors'); //Importado
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// ✅ Habilita CORS
+//Habilita CORS
 app.use(cors({
   origin: 'http://localhost:3000'
 }));
@@ -29,12 +29,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Rotas...
-// ✅ GET / → rota básica de teste
+//GET / → rota básica de teste
 app.get('/', (req, res) => {
   res.send('🚀 API de Upload está online!');
 });
 
-// ✅ POST /upload
+//POST /upload
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
 
@@ -47,7 +47,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   });
 });
 
-// ✅ GET /uploads
+//GET /uploads
 app.get('/uploads', (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) {
@@ -63,7 +63,7 @@ app.get('/uploads', (req, res) => {
   });
 });
 
-// ✅ GET /uploads/:filename
+//GET /uploads/:filename
 app.get('/uploads/:filename', (req, res) => {
   const filePath = path.join(uploadDir, req.params.filename);
   if (!fs.existsSync(filePath)) {
@@ -72,7 +72,7 @@ app.get('/uploads/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// 🚀 Inicia o servidor
+// Inicia o servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
