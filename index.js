@@ -9,7 +9,8 @@ const PORT = process.env.PORT || 8080;
 
 //Habilita CORS
 app.use(cors({
-  origin: 'http://localhost:3000'
+  origin: 'https://web-repositorio.vercel.app/'
+  
 }));
 
 // 📁 Cria a pasta uploads se não existir
