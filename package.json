@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["express", "upload", "multer", "api"],
+  "keywords": [
+    "express",
+    "upload",
+    "multer",
+    "api"
+  ],
   "author": "Fausto",
   "license": "ISC",
   "type": "commonjs",
