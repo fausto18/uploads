@@ -56,7 +56,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     // Inserir metadados no banco de dados
     await db.query(
-      'INSERT INTO upload (original_name, saved_name) VALUES ($1, $2)',
+      'INSERT INTO uploads_final (original_name, saved_name) VALUES ($1, $2)',
       [originalname, filename]
     );
 
@@ -67,8 +67,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       url: fileUrl
     });
   } catch (err) {
-    console.error('❌ ERRO DETALHADO:', err.stack); // mostra a linha exata do erro
-    res.status(500).json({ error: 'Erro ao salvar metadados no banco.' });
+    console.error('ERRO DETALHADO:', err.stack); // mostra a linha exata do erro
+    res.status(500).json({ error: err.message });
   }  
 });
 
