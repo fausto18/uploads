@@ -67,9 +67,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       url: fileUrl
     });
   } catch (err) {
-    console.error('Erro ao salvar no banco de dados:', err);
+    console.error('❌ ERRO DETALHADO:', err.stack); // mostra a linha exata do erro
     res.status(500).json({ error: 'Erro ao salvar metadados no banco.' });
-  }
+  }  
 });
 
 // ✅ GET /uploads → lista os arquivos do disco
