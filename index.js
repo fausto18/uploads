@@ -55,9 +55,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
   try {
     await db.query(
-      'INSERT INTO upload (original_name, saved_name) VALUES ($1, $2)',
+      'INSERT INTO upload (original_name, saved_name, uploaded_at) VALUES ($1, $2, CURRENT_TIMESTAMP)',
       [originalname, filename]
-    );
+    );    
 
     res.status(201).json({
       message: 'Upload realizado com sucesso!',
