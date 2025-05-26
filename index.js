@@ -55,7 +55,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
   try {
     await db.query(
-      'INSERT INTO uploads_finais (original_name, saved_name) VALUES ($1, $2)',
+      'INSERT INTO upload (original_name, saved_name) VALUES ($1, $2)',
       [originalname, filename]
     );
 
