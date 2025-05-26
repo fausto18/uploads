@@ -43,7 +43,7 @@ const upload = multer({ storage });
 
 // ✅ Rota básica
 app.get('/', (req, res) => {
-  res.send('🚀 API de Upload está online!');
+  res.send('API de Upload está online!');
 });
 
 // ✅ POST /upload → salva no disco + insere no PostgreSQL
@@ -54,7 +54,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
 
   try {
-    // Inserir metadados no banco de dados
     await db.query(
       'INSERT INTO uploads_final (original_name, saved_name) VALUES ($1, $2)',
       [originalname, filename]
@@ -67,9 +66,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       url: fileUrl
     });
   } catch (err) {
-    console.error('ERRO DETALHADO:', err.stack); // mostra a linha exata do erro
+    console.error('ERRO DETALHADO:', err.stack);
     res.status(500).json({ error: err.message });
-  }  
+  }
 });
 
 // ✅ GET /uploads → lista os arquivos do disco
@@ -95,6 +94,17 @@ app.get('/uploads/:filename', (req, res) => {
     return res.status(404).json({ error: 'Arquivo não encontrado.' });
   }
   res.sendFile(filePath);
+});
+
+// ✅ NOVA ROTA: GET /files → lista os registros do banco de dados
+app.get('/files', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM uploads_final ORDER BY uploaded_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao buscar uploads:', err.stack);
+    res.status(500).json({ error: 'Erro ao buscar uploads no banco de dados.' });
+  }
 });
 
 // 🚀 Inicia o servidor
