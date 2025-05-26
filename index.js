@@ -99,7 +99,7 @@ app.get('/uploads/:filename', (req, res) => {
 // ✅ NOVA ROTA: GET /files → lista os registros do banco de dados
 app.get('/files', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM uploads_final ORDER BY uploaded_at DESC');
+    const result = await db.query('SELECT * FROM upload ORDER BY uploaded_at DESC');
     res.json(result.rows);
   } catch (err) {
     console.error('Erro ao buscar uploads:', err.stack);
