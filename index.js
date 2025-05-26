@@ -2,12 +2,21 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const cors = require('cors'); //Importado
+const cors = require('cors');
+const { Pool } = require('pg'); // ✅ PostgreSQL
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-//Habilita CORS
+// 🔐 Conexão com PostgreSQL via variável DATABASE_URL
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// 🌐 Habilita CORS
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -16,7 +25,7 @@ app.use(cors({
   credentials: true
 }));
 
-// 📁 Cria a pasta uploads se não existir
+// 📁 Cria pasta uploads se não existir
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -32,26 +41,38 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Rotas...
-//GET / → rota básica de teste
+// ✅ Rota básica
 app.get('/', (req, res) => {
   res.send('🚀 API de Upload está online!');
 });
 
-//POST /upload
-app.post('/upload', upload.single('file'), (req, res) => {
+// ✅ POST /upload → salva no disco + insere no PostgreSQL
+app.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
 
-  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  res.status(201).json({
-    message: 'Upload realizado com sucesso!',
-    filename: req.file.filename,
-    originalname: req.file.originalname,
-    url: fileUrl
-  });
+  const { originalname, filename } = req.file;
+  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+
+  try {
+    // Inserir metadados no banco de dados
+    await db.query(
+      'INSERT INTO uploads (original_name, saved_name) VALUES ($1, $2)',
+      [originalname, filename]
+    );
+
+    res.status(201).json({
+      message: 'Upload realizado com sucesso!',
+      filename,
+      originalname,
+      url: fileUrl
+    });
+  } catch (err) {
+    console.error('Erro ao salvar no banco de dados:', err);
+    res.status(500).json({ error: 'Erro ao salvar metadados no banco.' });
+  }
 });
 
-//GET /uploads
+// ✅ GET /uploads → lista os arquivos do disco
 app.get('/uploads', (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) {
@@ -67,7 +88,7 @@ app.get('/uploads', (req, res) => {
   });
 });
 
-//GET /uploads/:filename
+// ✅ GET /uploads/:filename → serve um arquivo específico
 app.get('/uploads/:filename', (req, res) => {
   const filePath = path.join(uploadDir, req.params.filename);
   if (!fs.existsSync(filePath)) {
@@ -76,7 +97,7 @@ app.get('/uploads/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// Inicia o servidor
+// 🚀 Inicia o servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
