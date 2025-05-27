@@ -1,7 +1,10 @@
 
 # 📁 Upload API com CRUD (Node.js + Express + PostgreSQL)
 
-Esta é uma API REST completa para envio de arquivos, armazenamento local, registro de metadados em um banco de dados PostgreSQL e suporte a operações de **CRUD**. Ideal para projetos de repositórios, bibliotecas digitais ou sistemas de submissão de documentos.
+# Descrição da API
+A Upload API com CRUD é uma aplicação backend desenvolvida em Node.js com Express, que permite o envio, armazenamento e gestão de arquivos de forma eficiente. Os arquivos são armazenados localmente no servidor, enquanto seus metadados (nome original, nome salvo, data de envio) são salvos em um banco de dados PostgreSQL.
+
+Esta API suporta um conjunto completo de operações CRUD (Criar, Ler, Atualizar, Deletar) sobre os registros de upload, além de servir os arquivos para download. É ideal para aplicações como repositórios acadêmicos, sistemas de submissão de documentos, bibliotecas digitais e plataformas de armazenamento interno.
 
 ---
 
