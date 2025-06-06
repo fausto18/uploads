@@ -1,22 +1,23 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const multer = require('multer');
-const cors = require('cors');
-const { Pool } = require('pg');
+// index.js
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// 🔐 Conexão com PostgreSQL
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+// Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY,
+  { auth: { persistSession: false } }
+);
 
-// 🌐 CORS
+// CORS
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -25,149 +26,152 @@ app.use(cors({
   credentials: true
 }));
 
-// 📁 Pasta de uploads
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// ⚙️ Configuração do Multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${file.originalname}`;
-    cb(null, uniqueName);
-  }
-});
-const upload = multer({ storage });
-
-// ✅ Middleware JSON para rotas PUT
 app.use(express.json());
 
-// 🔹 Rota básica
+// Multer (armazenamento em memória)
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Boas-vindas
 app.get('/', (req, res) => {
-  res.send('Seja Bem-vindo a API do Metanoia!');
+  res.send('Seja Bem-vindo à API do Metanoia!');
 });
 
-// 🔹 POST /upload → criar novo upload
+// Upload
 app.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
 
-  const { originalname, filename } = req.file;
-  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+  const { originalname, buffer, mimetype } = req.file;
+  const filename = `${Date.now()}-${originalname}`;
 
-  try {
-    await db.query(
-      'INSERT INTO upload (original_name, saved_name, uploaded_at) VALUES ($1, $2, CURRENT_TIMESTAMP)',
-      [originalname, filename]
-    );
-    res.status(201).json({
-      message: 'Upload realizado com sucesso!',
-      filename,
-      originalname,
-      url: fileUrl
-    });
-  } catch (err) {
-    console.error('ERRO DETALHADO:', err.stack);
-    res.status(500).json({ error: err.message });
-  }
-});
+  const { error: uploadError } = await supabase.storage
+    .from('uploads')
+    .upload(filename, buffer, { contentType: mimetype });
 
-// 🔹 GET /uploads → lista arquivos no disco
-app.get('/uploads', (req, res) => {
-  fs.readdir(uploadDir, (err, files) => {
-    if (err) return res.status(500).json({ error: 'Erro ao acessar os arquivos.' });
+  if (uploadError) return res.status(500).json({ error: uploadError.message });
 
-    const lista = files.map((filename) => ({
-      filename,
-      url: `${req.protocol}://${req.get('host')}/uploads/${filename}`
-    }));
+  const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(filename);
 
-    res.json(lista);
+  const { data, error } = await supabase
+    .from('upload')
+    .insert([{ original_name: originalname, saved_name: filename }]);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.status(201).json({
+    message: 'Upload realizado com sucesso!',
+    url: publicUrlData.publicUrl,
+    filename,
+    originalname
   });
 });
 
-// 🔹 GET /uploads/:filename → acessa arquivo físico
-app.get('/uploads/:filename', (req, res) => {
-  const filePath = path.join(uploadDir, req.params.filename);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'Arquivo não encontrado.' });
-  }
-  res.sendFile(filePath);
-});
-
-// 🔹 GET /files → listar todos os uploads no banco
+// Lista todos os uploads (rota geral)
 app.get('/files', async (req, res) => {
-  try {
-    const result = await db.query('SELECT * FROM upload ORDER BY uploaded_at DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Erro ao buscar uploads:', err.stack);
-    res.status(500).json({ error: 'Erro ao buscar uploads no banco de dados.' });
-  }
+  const { data, error } = await supabase
+    .from('upload')
+    .select('*')
+    .order('uploaded_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const arquivos = data.map(file => {
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(file.saved_name);
+    return {
+      ...file,
+      url: publicUrlData.publicUrl
+    };
+  });
+
+  res.json(arquivos);
 });
 
-// 🔹 GET /files/:id → buscar um upload por ID
+// Lista para frontend
+app.get('/uploads', async (req, res) => {
+  const { data, error } = await supabase
+    .from('upload')
+    .select('*')
+    .order('uploaded_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const arquivos = data.map(file => {
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(file.saved_name);
+    return {
+      ...file,
+      url: publicUrlData.publicUrl
+    };
+  });
+
+  res.json(arquivos);
+});
+
+// Buscar arquivo por ID
 app.get('/files/:id', async (req, res) => {
-  try {
-    const result = await db.query('SELECT * FROM upload WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Registro não encontrado.' });
-    }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Erro ao buscar registro:', err.stack);
-    res.status(500).json({ error: 'Erro ao buscar registro.' });
-  }
+  const { data, error } = await supabase
+    .from('upload')
+    .select('*')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error || !data) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+  const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(data.saved_name);
+
+  res.json({ ...data, url: publicUrlData.publicUrl });
 });
 
-// 🔹 PUT /files/:id → atualizar nome_original
+// Atualizar nome do arquivo
+
 app.put('/files/:id', async (req, res) => {
-  const { original_name } = req.body;
-  if (!original_name) {
+  if (!req.body || !req.body.original_name) {
     return res.status(400).json({ error: 'Campo original_name é obrigatório.' });
   }
 
-  try {
-    const result = await db.query(
-      'UPDATE upload SET original_name = $1 WHERE id = $2 RETURNING *',
-      [original_name, req.params.id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Registro não encontrado.' });
-    }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Erro ao atualizar registro:', err.stack);
-    res.status(500).json({ error: 'Erro ao atualizar registro.' });
+  const { original_name } = req.body;
+
+  const { data, error } = await supabase
+    .from('upload')
+    .update({ original_name })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    return res.status(404).json({ error: 'Erro ao atualizar registro.' });
   }
+
+  res.json(data);
 });
 
-// 🔹 DELETE /files/:id → remove do banco e do disco
+
+// Deletar
 app.delete('/files/:id', async (req, res) => {
-  try {
-    const result = await db.query('SELECT saved_name FROM upload WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Registro não encontrado.' });
-    }
+  const { data: fileData, error: findError } = await supabase
+    .from('upload')
+    .select('saved_name')
+    .eq('id', req.params.id)
+    .single();
 
-    const filename = result.rows[0].saved_name;
-    const filePath = path.join(uploadDir, filename);
+  if (findError || !fileData) return res.status(404).json({ error: 'Registro não encontrado.' });
 
-    await db.query('DELETE FROM upload WHERE id = $1', [req.params.id]);
+  const { error: storageError } = await supabase
+    .storage
+    .from('uploads')
+    .remove([fileData.saved_name]);
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+  if (storageError) return res.status(500).json({ error: 'Erro ao excluir arquivo do Storage.' });
 
-    res.json({ message: 'Arquivo e registro deletados com sucesso.' });
-  } catch (err) {
-    console.error('Erro ao deletar registro:', err.stack);
-    res.status(500).json({ error: 'Erro ao deletar registro.' });
-  }
+  const { error: dbError } = await supabase
+    .from('upload')
+    .delete()
+    .eq('id', req.params.id);
+
+  if (dbError) return res.status(500).json({ error: 'Erro ao excluir do banco de dados.' });
+
+  res.json({ message: 'Arquivo e registro deletados com sucesso.' });
 });
 
-// 🚀 Inicia servidor
+// Inicia servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
 });

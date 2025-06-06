@@ -1,0 +1,7 @@
+
+CREATE TABLE upload (
+  id SERIAL PRIMARY KEY,
+  original_name TEXT NOT NULL,
+  saved_name TEXT NOT NULL,
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
